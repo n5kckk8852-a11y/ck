@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>资金K线（Web3风格）</title>
+  <style>
+    :root{
+      --bg0:#070A12;
+      --bg1:#0B1226;
+      --grid:rgba(255,255,255,.06);
+      --text:rgba(255,255,255,.86);
+      --muted:rgba(255,255,255,.55);
+      --up:#33f3c4;      /* 绿 */
+      --down:#ff4d8d;    /* 红 */
+      --wickUp:#8bffe6;
+      --wickDown:#ff8bb7;
+      --accent:#7c5cff;
+      --accent2:#00d1ff;
+      --card:rgba(255,255,255,.04);
+      --card2:rgba(255,255,255,.07);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "PingFang SC","Microsoft YaHei", Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 800px at 20% 20%, rgba(124,92,255,.18), transparent 55%),
+                  radial-gradient(1000px 700px at 80% 30%, rgba(0,209,255,.14), transparent 60%),
+                  radial-gradient(900px 600px at 40% 90%, rgba(51,243,196,.10), transparent 55%),
+                  linear-gradient(180deg, var(--bg0), var(--bg1));
+      color:var(--text);
+      overflow-x:hidden;
+    }
+    .wrap{
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 28px;
+    }
+    .header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+      margin-bottom: 14px;
+    }
+    .brand{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .logo{
+      width:44px;height:44px;border-radius:14px;
+      background:
+        radial-gradient(12px 12px at 30% 30%, rgba(255,255,255,.35), transparent 60%),
+        linear-gradient(135deg, rgba(124,92,255,.9), rgba(0,209,255,.9));
+      box-shadow: 0 0 0 1px rgba(255,255,255,.10),
+                  0 12px 30px rgba(0,0,0,.35),
+                  0 0 30px rgba(124,92,255,.25);
+    }
+    h1{
+      margin:0;
+      font-size:18px;
+      letter-spacing:.2px;
+      font-weight: 700;
+    }
+    .sub{
+      margin-top:2px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 18px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.45);
+      overflow:hidden;
+    }
+    .toolbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px 12px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.20);
+      backdrop-filter: blur(10px);
+    }
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    label{
+      font-size:12px;
+      color:var(--muted);
+      white-space:nowrap;
+    }
+    input[type="number"]{
+      width:110px;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.14);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 8px 10px;
+      outline:none;
+    }
+    input[type="range"]{
+      width:160px;
+      accent-color: var(--accent2);
+    }
+    button{
+      cursor:pointer;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(135deg, rgba(124,92,255,.85), rgba(0,209,255,.80));
+      color:#061018;
+      font-weight: 800;
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: 0 10px 24px rgba(0,209,255,.18), 0 10px 24px rgba(124,92,255,.18);
+      transition: transform .12s ease, filter .12s ease;
+    }
+    button:hover{ transform: translateY(-1px); filter: brightness(1.05); }
+    .canvasWrap{
+      position:relative;
+      padding: 10px;
+    }
+    canvas{
+      width:100%;
+      height: 520px;
+      display:block;
+      border-radius: 14px;
+      background:
+        radial-gradient(800px 520px at 20% 10%, rgba(124,92,255,.10), transparent 60%),
+        radial-gradient(900px 600px at 80% 10%, rgba(0,209,255,.09), transparent 62%),
+        radial-gradient(900px 700px at 50% 120%, rgba(51,243,196,.06), transparent 62%),
+        rgba(0,0,0,.18);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.07);
+    }
+    .hud{
+      position:absolute;
+      left: 18px;
+      top: 16px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      pointer-events:none;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      width: fit-content;
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 26px rgba(0,0,0,.35);
+      font-size: 12px;
+      color: var(--text);
+    }
+    .dot{
+      width:8px;height:8px;border-radius:999px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 16px rgba(0,209,255,.45);
+    }
+    .footerNote{
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>资金曲线</h1>
+          <div class="sub">模拟 OHLC · 复利曲线（可调参数）</div>
+        </div>
+      </div>
+      <div class="sub mono">Candles • Neon • Dark</div>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <div class="pill">
+          <label>初始本金(USD)</label>
+          <input id="principal" type="number" value="2000" min="1" step="1"/>
+        </div>
+
+        <div class="pill">
+          <label>日化(%)</label>
+          <input id="dailyRate" type="number" value="0.8" min="0" step="0.1"/>
+        </div>
+
+        <div class="pill">
+          <label>天数</label>
+          <input id="days" type="number" value="365" min="30" step="1"/>
+        </div>
+
+        <div class="pill" title="波动越大，K线影线越长、回撤越明显">
+          <label>波动(σ)</label>
+          <input id="vol" type="range" min="0.2" max="3.0" step="0.1" value="1.0"/>
+          <span class="mono" id="volVal">1.0</span>
+        </div>
+
+        <button id="regen">生成K线</button>
+      </div>
+
+      <div class="canvasWrap">
+        <div class="hud">
+          <div class="badge"><span class="dot"></span><span id="summary1">—</span></div>
+          <div class="badge"><span class="dot"></span><span id="summary2">—</span></div>
+        </div>
+        <canvas id="chart" width="1200" height="520"></canvas>
+      </div>
+    </div>
+
+    <div class="footerNote">
+      说明：这是<strong>模拟资金K线</strong>（开高低收来自“日内波动 + 日化漂移”），用于视觉呈现，不代表实际市场或真实可实现表现。
+    </div>
+  </div>
+
+  <script>
+    // ---------- Utilities ----------
+    function mulberry32(seed){
+      return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      }
+    }
+    function randn(rng){ // Box-Muller
+      let u = 0, v = 0;
+      while(u === 0) u = rng();
+      while(v === 0) v = rng();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    function formatUSD(x){
+      return new Intl.NumberFormat('en-US', {maximumFractionDigits: 2}).format(x);
+    }
+
+    // ---------- Data generator (OHLC) ----------
+    function generateOHLC({principal, dailyRate, days, volSigma, seed=42}){
+      const rng = mulberry32(seed);
+      const drift = dailyRate; // e.g. 0.008
+      const sigma = volSigma;  // user scale, percent-ish
+
+      const data = [];
+      let lastClose = principal;
+
+      for(let i=0;i<days;i++){
+        const open = lastClose;
+
+        // daily close: drift + noise
+        // noise scaled: sigma% -> convert to decimal and soften
+        const noise = randn(rng) * (sigma/100) * 1.2;
+        const ret = drift + noise;
+        const close = Math.max(0.01, open * (1 + ret));
+
+        // intraday wick range
+        // generate a wick factor that reacts to sigma
+        const wickBase = 0.002 + (sigma/100) * (0.6 + rng()); // 0.2% + ...
+        const high = Math.max(open, close) * (1 + wickBase * (0.8 + rng()));
+        const low  = Math.min(open, close) * (1 - wickBase * (0.8 + rng()));
+
+        data.push({open, high, low, close});
+        lastClose = close;
+      }
+      return data;
+    }
+
+    // ---------- Canvas candlestick renderer ----------
+    function drawCandles(canvas, ohlc){
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+
+      // paddings
+      const pad = {l: 64, r: 18, t: 18, b: 48};
+
+      // clear
+      ctx.clearRect(0,0,W,H);
+
+      // compute y scale
+      let minY = Infinity, maxY = -Infinity;
+      for(const c of ohlc){
+        if(c.low < minY) minY = c.low;
+        if(c.high > maxY) maxY = c.high;
+      }
+      // add margins
+      const yPad = (maxY - minY) * 0.08;
+      minY -= yPad; maxY += yPad;
+
+      const plotW = W - pad.l - pad.r;
+      const plotH = H - pad.t - pad.b;
+
+      const yToPx = (y) => pad.t + (maxY - y) * (plotH / (maxY - minY));
+      const xToPx = (i) => pad.l + i * (plotW / Math.max(1, ohlc.length - 1));
+
+      // background glow grid
+      // grid lines
+      ctx.save();
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim();
+      ctx.lineWidth = 1;
+
+      const gridY = 6;
+      for(let j=0;j<=gridY;j++){
+        const y = pad.t + j*(plotH/gridY);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(W-pad.r, y);
+        ctx.stroke();
+      }
+      const gridX = 8;
+      for(let j=0;j<=gridX;j++){
+        const x = pad.l + j*(plotW/gridX);
+        ctx.beginPath();
+        ctx.moveTo(x, pad.t);
+        ctx.lineTo(x, H-pad.b);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // axes labels (y)
+      ctx.save();
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim();
+      ctx.font = '12px ui-monospace, Menlo, Consolas, monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      for(let j=0;j<=gridY;j++){
+        const y = pad.t + j*(plotH/gridY);
+        const val = maxY - j*(maxY-minY)/gridY;
+        ctx.fillText(formatUSD(val), pad.l - 10, y);
+      }
+
+      // x labels (rough)
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      for(let j=0;j<=gridX;j++){
+        const i = Math.round(j*(ohlc.length-1)/gridX);
+        const x = xToPx(i);
+        ctx.fillText(`${i+1}`, x, H-pad.b+10);
+      }
+      ctx.restore();
+
+      // candle width
+      const step = plotW / Math.max(1, ohlc.length);
+      const bodyW = Math.max(2, Math.min(10, step * 0.65));
+
+      const css = getComputedStyle(document.documentElement);
+      const up = css.getPropertyValue('--up').trim();
+      const down = css.getPropertyValue('--down').trim();
+      const wickUp = css.getPropertyValue('--wickUp').trim();
+      const wickDown = css.getPropertyValue('--wickDown').trim();
+
+      // draw candles
+      for(let i=0;i<ohlc.length;i++){
+        const c = ohlc[i];
+        const x = xToPx(i);
+
+        const o = yToPx(c.open);
+        const cl = yToPx(c.close);
+        const hi = yToPx(c.high);
+        const lo = yToPx(c.low);
+
+        const isUp = c.close >= c.open;
+
+        // wick
+        ctx.save();
+        ctx.strokeStyle = isUp ? wickUp : wickDown;
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, hi);
+        ctx.lineTo(x, lo);
+        ctx.stroke();
+        ctx.restore();
+
+        // body
+        const top = Math.min(o, cl);
+        const bottom = Math.max(o, cl);
+        const h = Math.max(2, bottom - top);
+
+        // neon glow
+        ctx.save();
+        ctx.shadowColor = isUp ? up : down;
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = isUp ? up : down;
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(x - bodyW/2, top, bodyW, h);
+        ctx.restore();
+
+        // inner body highlight
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,.10)';
+        ctx.fillRect(x - bodyW/2 + 1, top + 1, Math.max(1, bodyW - 2), Math.max(1, h - 2));
+        ctx.restore();
+      }
+
+      // top-left legend line (last close)
+      const last = ohlc[ohlc.length - 1];
+      const lastY = yToPx(last.close);
+
+      // price line glow
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,.20)';
+      ctx.setLineDash([6,6]);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, lastY);
+      ctx.lineTo(W-pad.r, lastY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // ---------- Controller ----------
+    const elPrincipal = document.getElementById('principal');
+    const elRate = document.getElementById('dailyRate');
+    const elDays = document.getElementById('days');
+    const elVol = document.getElementById('vol');
+    const elVolVal = document.getElementById('volVal');
+    const btn = document.getElementById('regen');
+    const canvas = document.getElementById('chart');
+    const s1 = document.getElementById('summary1');
+    const s2 = document.getElementById('summary2');
+
+    function regen(seed = Math.floor(Math.random()*1e9)){
+      const principal = Math.max(1, Number(elPrincipal.value || 2000));
+      const dailyRatePct = Number(elRate.value || 0.8);
+      const dailyRate = dailyRatePct / 100;
+      const days = Math.max(30, Math.floor(Number(elDays.value || 365)));
+      const volSigma = Number(elVol.value || 1.0);
+      elVolVal.textContent = volSigma.toFixed(1);
+
+      const ohlc = generateOHLC({principal, dailyRate, days, volSigma, seed});
+      drawCandles(canvas, ohlc);
+
+      const last = ohlc[ohlc.length - 1];
+      const multiple = last.close / principal;
+
+      s1.textContent = `初始 $${formatUSD(principal)} · 日化 ${dailyRatePct.toFixed(2)}% · ${days} 天`;
+      s2.textContent = `期末 ≈ $${formatUSD(last.close)}（约 ${multiple.toFixed(2)} 倍） · 波动 σ=${volSigma.toFixed(1)}`;
+    }
+
+    elVol.addEventListener('input', ()=> regen(12345));
+    btn.addEventListener('click', ()=> regen());
+    window.addEventListener('resize', ()=> {
+      // keep canvas crisp on high-DPI? (optional)
+      // In this demo we keep fixed internal resolution for simplicity.
+    });
+
+    // initial render
+    regen(12345);
+  </script>
+</body>
+</html>
